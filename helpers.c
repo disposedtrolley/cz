@@ -6,8 +6,7 @@
 #include "helpers.h"
 
 ZRet read_story_file(char *path, uint8_t **buf, uint32_t *len) {
-    struct stat stat_buf;
-    if (stat(path, &stat_buf) != 0) {
+    if (stat(path, &(struct stat){}) != 0) {
         return ZRet_IOReadError;
     }
 
