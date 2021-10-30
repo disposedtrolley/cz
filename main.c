@@ -27,6 +27,27 @@ ZRet memory_read_word(uint32_t addr, uint16_t *result) {
     return ZRet_Success;
 }
 
+ZRet memory_write_byte(uint32_t addr, uint8_t data) {
+    if (addr > memory_size) {
+        return ZRet_MemoryWriteError;
+    }
+
+    memory[addr] = data;
+
+    return ZRet_Success;
+}
+
+ZRet memory_write_word(uint32_t addr, uint16_t data) {
+    if (addr > memory_size - 1) {
+        return ZRet_MemoryWriteError;
+    }
+
+    memory[addr] = data >> 8;
+    memory[addr+1] = (uint8_t) data;
+
+    return ZRet_Success;
+}
+
 int main(int argc, char *argv[]) {
     if (argc != 2) {
         panic("Expected one argument (path to story file), but got %d\n", argc);
@@ -47,6 +68,9 @@ int main(int argc, char *argv[]) {
     }
 
     printf("Word at 0x00: %#06hx", result);
+
+    memory_write_byte(0x00, 0x08);
+    memory_write_word(0x01, 0x0200);
 
     return EXIT_SUCCESS;
 }
