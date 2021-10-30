@@ -4,4 +4,5 @@ project(yazi C)
 set(CMAKE_C_STANDARD 11)
 
 add_executable(yazi
-        main.c)
+        main.c
+        helpers.c)
