@@ -1,7 +1,6 @@
 #include <stdlib.h>
 #include <stdio.h>
 #include <stdint.h>
-#include <assert.h>
 
 #include "helpers.h"
 #include "memory.h"
@@ -22,14 +21,7 @@ int main(int argc, char *argv[]) {
 
     printf("Length of story file: %d\n", memory_size);
 
-    uint16_t result;
-    assert(memory_read_word(0x00, &result) == ZRet_Success);
-
-    assert(memory_write_byte(0x00, 0x08) == ZRet_Success);
-    assert(memory_write_word(0x01, 0x0200) == ZRet_Success);
-
-    assert(memory_read_byte(0x00, &zversion) == ZRet_Success);
-
+    zversion = memory_read_byte(0x00);
     zversion_specific = zversion;
 
     if (zversion == 7 || zversion == 8) {
