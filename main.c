@@ -5,6 +5,7 @@
 
 #include "helpers.h"
 #include "memory.h"
+#include "machine.h"
 
 uint8_t zversion, zversion_specific;
 
@@ -37,6 +38,12 @@ int main(int argc, char *argv[]) {
     }
 
     printf("Version: %d Version specific: %d\n", zversion, zversion_specific);
+
+    uint8_t flags;
+    assert(memory_read_byte(0x01, &flags) == ZRet_Success);
+
+    flags |= HEADER_CENSOR;
+    assert(memory_write_byte(0x01, flags) == ZRet_Success);
 
     return EXIT_SUCCESS;
 }
