@@ -3,6 +3,7 @@
 #include <stdint.h>
 #include <assert.h>
 #include "memory.h"
+#include "stack.h"
 
 struct config config = {
         .interpreter_number = 12,
@@ -32,6 +33,15 @@ ZRet initialise_irom(uint8_t zversion) {
 }
 
 ZRet start_game_loop(uint8_t zversion, uint8_t zversion_specific) {
+    // IROM
     initialise_irom(zversion);
+
+    // Stack
+    initialise_stack();
+    uint16_t return_pc;
+    assert(memory_read_word(0x06, &return_pc) == ZRet_Success);
+
+    push((Frame){.return_pc = return_pc });
+
     return ZRet_Success;
 }

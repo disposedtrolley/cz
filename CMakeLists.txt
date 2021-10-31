@@ -6,5 +6,6 @@ set(CMAKE_C_STANDARD 11)
 add_executable(yazi
         main.c
         memory.c
+        stack.c
         machine.c
         helpers.c)
