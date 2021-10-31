@@ -2,6 +2,7 @@
 #define MEMORY_H
 
 #include <stdint.h>
+
 #include "helpers.h"
 
 extern uint8_t *memory;

@@ -1,3 +1,5 @@
+#include <stdint.h>
+
 #include "memory.h"
 #include "helpers.h"
 

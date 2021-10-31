@@ -1,6 +1,8 @@
 #ifndef HELPERS_H
 #define HELPERS_H
 
+#include <stdint.h>
+
 typedef enum {
     ZRet_Success,
     ZRet_IOReadError,
