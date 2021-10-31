@@ -31,6 +31,6 @@ static const uint8_t HEADER_EMPHASIS_AVAILABLE = (1U << 3);
 static const uint8_t HEADER_FIXEDWIDTH_AVAILABLE = (1U << 4);
 static const uint8_t HEADER_SOUND_AVAILABLE = (1U << 5);
 
-ZRet start_game_loop();
+ZRet start_game_loop(uint8_t zversion, uint8_t zversion_specific);
 
 #endif
