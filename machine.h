@@ -6,6 +6,21 @@
 #include <stdbool.h>
 #include <stdint.h>
 
+enum OpcodeKind {
+    OpcodeKind_0OP,
+    OpcodeKind_1OP,
+    OpcodeKind_2OP,
+    OpcodeKind_VAR,
+    OpcodeKind_EXT,
+};
+
+typedef struct Instruction {
+    enum OpcodeKind opcode_kind;
+    uint8_t opcode_number;
+    uint8_t n_operands;
+    uint16_t operands[];
+} Instruction;
+
 typedef struct Frame {
     uint32_t return_pc;
     uint8_t flags;
