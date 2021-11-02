@@ -5,6 +5,37 @@
 #include <string.h>
 #include <assert.h>
 
+enum OpcodeKind {
+    OpcodeKind_0OP,
+    OpcodeKind_1OP,
+    OpcodeKind_2OP,
+    OpcodeKind_VAR,
+    OpcodeKind_EXT,
+};
+
+typedef struct Instruction {
+    enum OpcodeKind opcode_kind;
+    uint8_t opcode_number;
+    uint8_t n_operands;
+    uint16_t operands[8];
+    uint8_t pc_incr;
+} Instruction;
+
+// v3
+static const uint8_t HEADER_STATUS_TYPE = (1U << 1);
+static const uint8_t HEADER_CENSOR = (1U << 3);
+static const uint8_t HEADER_STATUS_NOT_AVAILABLE = (1U << 4);
+static const uint8_t HEADER_UPPER_WINDOW_AVAILABLE = (1U << 5);
+static const uint8_t HEADER_FONT_VARIABLE = (1U << 6);
+
+// v4+
+static const uint8_t HEADER_COLOURS_AVAILABLE = (1U << 0);
+static const uint8_t HEADER_PICTURES_AVAILABLE = (1U << 1);
+static const uint8_t HEADER_BOLDFACE_AVAILABLE = (1U << 2);
+static const uint8_t HEADER_EMPHASIS_AVAILABLE = (1U << 3);
+static const uint8_t HEADER_FIXEDWIDTH_AVAILABLE = (1U << 4);
+static const uint8_t HEADER_SOUND_AVAILABLE = (1U << 5);
+
 uint8_t memory_read_byte(Machine *m, uint32_t addr) {
     assert(addr < m->memory_size);
     return m->memory[addr];
