@@ -159,6 +159,33 @@ Instruction decode(Machine *m, uint16_t offset, uint8_t zversion) {
         // Extended
         parsed.opcode_kind = OpcodeKind_EXT;
         parsed.opcode_number = memory_read_byte(m, offset+1);
+
+        uint8_t operand_types_bitfield = memory_read_byte(m, offset+2);
+        uint8_t offset_offset = 0;
+        for (size_t shift = 6; shift >= 0; shift-=2) {
+            uint8_t type = operand_types_bitfield >> shift & 0b11;
+            if (type == 0b11) break;
+
+            switch (type) {
+                case 0b00:
+                    parsed.operands[parsed.n_operands] = memory_read_word(m, offset+3+offset_offset);
+                    parsed.pc_incr = 4;
+                    offset_offset += 2;
+                    break;
+                case 0b01:
+                    parsed.operands[parsed.n_operands] = memory_read_byte(m, offset+3+offset_offset);
+                    parsed.pc_incr = 3;
+                    offset_offset += 1;
+                    break;
+                case 0b10:
+                    get_variable(m, offset+3+offset_offset);
+                    parsed.pc_incr = 3;
+                    offset_offset += 1;
+                    break;
+            }
+
+            parsed.n_operands += 1;
+        }
     } else {
         // Long
         parsed.opcode_kind = OpcodeKind_2OP;
