@@ -95,7 +95,40 @@ Instruction decode(Machine *m, uint16_t offset, uint8_t zversion) {
     if ((opcode_top_bits ^ 0b11) == 0) {
         // Variable
         parsed.opcode_number = opcode & 0x1F;
-        parsed.opcode_kind = (opcode >> 5 & 1U) ? OpcodeKind_VAR : OpcodeKind_2OP;
+        if ((opcode >> 5 & 0b1) == 0b0) {
+            parsed.opcode_kind = OpcodeKind_2OP;
+            parsed.n_operands = 2;
+        } else {
+            parsed.opcode_kind = OpcodeKind_VAR;
+
+            uint8_t operand_types_bitfield = memory_read_byte(m, offset+1);
+            uint8_t offset_offset = 0;
+            for (size_t shift = 6; shift >= 0; shift-=2) {
+                uint8_t type = operand_types_bitfield >> shift & 0b11;
+                if (type == 0b11) break;
+
+                switch (type) {
+                    case 0b00:
+                        parsed.operands[parsed.n_operands] = memory_read_word(m, offset+2+offset_offset);
+                        pc_incr_bytes = 4;
+                        offset_offset += 2;
+                        break;
+                    case 0b01:
+                        parsed.operands[parsed.n_operands] = memory_read_byte(m, offset+2+offset_offset);
+                        pc_incr_bytes = 3;
+                        offset_offset += 1;
+                        break;
+                    case 0b10:
+                        get_variable(m, offset+2+offset_offset);
+                        pc_incr_bytes = 3;
+                        offset_offset += 1;
+                        break;
+                }
+
+                parsed.n_operands += 1;
+            }
+        }
+
     } else if ((opcode_top_bits ^ 0b10) == 0) {
         // Short
         parsed.opcode_number = opcode & 0xF;
