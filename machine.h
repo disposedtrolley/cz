@@ -18,7 +18,7 @@ typedef struct Instruction {
     enum OpcodeKind opcode_kind;
     uint8_t opcode_number;
     uint8_t n_operands;
-    uint16_t operands[];
+    uint16_t operands[8];
 } Instruction;
 
 typedef struct Frame {

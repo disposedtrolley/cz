@@ -2,6 +2,7 @@
 
 #include <stdint.h>
 #include <stdlib.h>
+#include <string.h>
 #include <assert.h>
 
 uint8_t memory_read_byte(Machine *m, uint32_t addr) {
@@ -58,7 +59,28 @@ ZRet initialise_irom(Machine *m, Config config, uint8_t zversion) {
     return ZRet_Success;
 }
 
+uint16_t get_variable(Machine *m, uint8_t var) {
+    /*
+     * Variable number $00 refers to the top of the stack,
+     * $01 to $0f mean the local variables of the current
+     * routine and $10 to $ff mean the global variables.
+     *
+     * It is illegal to refer to local variables which do
+     * not exist for the current routine (there may even be
+     * none).
+     */
+
+    return 0;
+}
+
 Instruction decode(Machine *m, uint16_t offset, uint8_t zversion) {
+    Instruction parsed = {
+            .n_operands = 0,
+            .operands = {},
+    };
+
+    uint8_t pc_incr_bytes = 2;
+
     uint8_t opcode = memory_read_byte(m, offset);
 
     /*
@@ -68,42 +90,53 @@ Instruction decode(Machine *m, uint16_t offset, uint8_t zversion) {
   $$11    Omitted altogether             0 bytes
      */
 
-    uint8_t nargs;
-    enum OpcodeKind kind;
-    uint8_t opcode_number;
     uint8_t opcode_top_bits = opcode >> 6;
 
     if ((opcode_top_bits ^ 0b11) == 0) {
         // Variable
-        opcode_number = opcode & 0x7;
-        kind = (opcode >> 5 & 1U) ? OpcodeKind_VAR : OpcodeKind_2OP;
+        parsed.opcode_number = opcode & 0x7;
+        parsed.opcode_kind = (opcode >> 5 & 1U) ? OpcodeKind_VAR : OpcodeKind_2OP;
     } else if ((opcode_top_bits ^ 0b10) == 0) {
         // Short
+        parsed.opcode_number = opcode & 0xF;
+        // Bits 4 and 5
         if ((opcode >> 4 & 0x3) == 0x3) {
-            kind = OpcodeKind_0OP;
-            nargs = 0;
+            parsed.opcode_kind = OpcodeKind_0OP;
+            parsed.n_operands = 0;
         } else {
-            kind = OpcodeKind_1OP;
-            nargs = 1;
+            parsed.opcode_kind = OpcodeKind_1OP;
+            parsed.n_operands = 1;
+
+            uint8_t operand_type = (opcode >> 4) & 0x3;
+            if (operand_type == 0b00) {
+                // Word constant
+                parsed.operands[0] = memory_read_word(m, offset+1);
+                pc_incr_bytes = 3;
+            } else if (operand_type == 0b01) {
+                // Byte constant
+                parsed.operands[0] = memory_read_byte(m, offset+1);
+                pc_incr_bytes = 2;
+            } else if (operand_type == 0b10) {
+                // Byte variable
+                parsed.operands[0] = get_variable(m, memory_read_byte(m, offset+1));
+                pc_incr_bytes = 2;
+            }
         }
 
-        opcode_number = opcode & 0xF;
     } else if ((opcode_top_bits ^ 0xBE) == 0 && zversion >= 5) {
         // Extended
-        kind = OpcodeKind_EXT;
-        opcode_number = memory_read_byte(m, offset+1);
+        parsed.opcode_kind = OpcodeKind_EXT;
+        parsed.opcode_number = memory_read_byte(m, offset+1);
     } else {
         // Long
-        kind = OpcodeKind_2OP;
-        nargs = 2;
-        opcode_number = opcode & 0x7;
+        parsed.opcode_kind = OpcodeKind_2OP;
+        parsed.opcode_number = opcode & 0x7;
+        parsed.n_operands = 2;
     }
 
-    return (Instruction){
-        .opcode_kind = kind,
-        .n_operands = nargs,
-        .opcode_number = opcode_number,
-    };
+    m->pc += pc_incr_bytes;
+
+    return parsed;
 }
 
 ZRet start_game_loop(Machine *m, Config config, uint8_t zversion, uint8_t zversion_specific) {
