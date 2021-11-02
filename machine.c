@@ -94,7 +94,7 @@ Instruction decode(Machine *m, uint16_t offset, uint8_t zversion) {
 
     if ((opcode_top_bits ^ 0b11) == 0) {
         // Variable
-        parsed.opcode_number = opcode & 0x7;
+        parsed.opcode_number = opcode & 0x1F;
         parsed.opcode_kind = (opcode >> 5 & 1U) ? OpcodeKind_VAR : OpcodeKind_2OP;
     } else if ((opcode_top_bits ^ 0b10) == 0) {
         // Short
@@ -130,8 +130,19 @@ Instruction decode(Machine *m, uint16_t offset, uint8_t zversion) {
     } else {
         // Long
         parsed.opcode_kind = OpcodeKind_2OP;
-        parsed.opcode_number = opcode & 0x7;
+        parsed.opcode_number = opcode & 0x1F;
         parsed.n_operands = 2;
+
+        uint8_t operand_types[2] = {(opcode >> 6) & 0b1, (opcode >> 5) & 0b1};
+        for (size_t i = 0; i < sizeof operand_types; i++) {
+            if (operand_types[i] == 0b0) {
+                // Byte constant
+                parsed.operands[i] = memory_read_byte(m, offset+1);
+            } else {
+                // Byte variable
+                parsed.operands[i] = get_variable(m, memory_read_byte(m, offset+1));
+            }
+        }
     }
 
     m->pc += pc_incr_bytes;
