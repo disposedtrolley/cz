@@ -19,6 +19,7 @@ typedef struct Instruction {
     uint8_t opcode_number;
     uint8_t n_operands;
     uint16_t operands[8];
+    uint8_t pc_incr;
 } Instruction;
 
 typedef struct Frame {

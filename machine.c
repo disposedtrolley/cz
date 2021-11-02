@@ -77,9 +77,8 @@ Instruction decode(Machine *m, uint16_t offset, uint8_t zversion) {
     Instruction parsed = {
             .n_operands = 0,
             .operands = {},
+            .pc_incr = 2,
     };
-
-    uint8_t pc_incr_bytes = 2;
 
     uint8_t opcode = memory_read_byte(m, offset);
 
@@ -110,17 +109,17 @@ Instruction decode(Machine *m, uint16_t offset, uint8_t zversion) {
                 switch (type) {
                     case 0b00:
                         parsed.operands[parsed.n_operands] = memory_read_word(m, offset+2+offset_offset);
-                        pc_incr_bytes = 4;
+                        parsed.pc_incr = 4;
                         offset_offset += 2;
                         break;
                     case 0b01:
                         parsed.operands[parsed.n_operands] = memory_read_byte(m, offset+2+offset_offset);
-                        pc_incr_bytes = 3;
+                        parsed.pc_incr = 3;
                         offset_offset += 1;
                         break;
                     case 0b10:
                         get_variable(m, offset+2+offset_offset);
-                        pc_incr_bytes = 3;
+                        parsed.pc_incr = 3;
                         offset_offset += 1;
                         break;
                 }
@@ -144,15 +143,15 @@ Instruction decode(Machine *m, uint16_t offset, uint8_t zversion) {
             if (operand_type == 0b00) {
                 // Word constant
                 parsed.operands[0] = memory_read_word(m, offset+1);
-                pc_incr_bytes = 3;
+                parsed.pc_incr = 3;
             } else if (operand_type == 0b01) {
                 // Byte constant
                 parsed.operands[0] = memory_read_byte(m, offset+1);
-                pc_incr_bytes = 2;
+                parsed.pc_incr = 2;
             } else if (operand_type == 0b10) {
                 // Byte variable
                 parsed.operands[0] = get_variable(m, memory_read_byte(m, offset+1));
-                pc_incr_bytes = 2;
+                parsed.pc_incr = 2;
             }
         }
 
@@ -177,8 +176,6 @@ Instruction decode(Machine *m, uint16_t offset, uint8_t zversion) {
             }
         }
     }
-
-    m->pc += pc_incr_bytes;
 
     return parsed;
 }
