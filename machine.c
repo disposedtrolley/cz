@@ -105,12 +105,13 @@ uint16_t get_variable(Machine *m, uint8_t var) {
 }
 
 Instruction decode_ins_long(Machine *m, uint8_t opcode) {
-    Instruction parsed = {};
     uint16_t offset = m->pc;
 
-    parsed.opcode_kind = OpcodeKind_2OP;
-    parsed.opcode_number = opcode & 0x1F;
-    parsed.n_operands = 2;
+    Instruction parsed = {
+            .opcode_kind = OpcodeKind_2OP,
+            .opcode_number = opcode &0x1F,
+            .n_operands = 2,
+    };
 
     uint8_t operand_types[2] = {(opcode >> 6) & 0b1, (opcode >> 5) & 0b1};
     for (size_t i = 0; i < sizeof operand_types; i++) {
@@ -127,11 +128,12 @@ Instruction decode_ins_long(Machine *m, uint8_t opcode) {
 }
 
 Instruction decode_ins_extended(Machine *m, uint8_t opcode) {
-    Instruction parsed = {};
     uint16_t offset = m->pc;
 
-    parsed.opcode_kind = OpcodeKind_EXT;
-    parsed.opcode_number = memory_read_byte(m, offset+1);
+    Instruction parsed = {
+            .opcode_kind = OpcodeKind_EXT,
+            .opcode_number = memory_read_byte(m, offset+1),
+    };
 
     uint8_t operand_types_bitfield = memory_read_byte(m, offset+2);
     uint8_t iter_offset = 0;
@@ -164,11 +166,12 @@ Instruction decode_ins_extended(Machine *m, uint8_t opcode) {
 }
 
 Instruction decode_ins_variable(Machine *m, uint8_t opcode) {
-    Instruction parsed = {};
     uint16_t offset = m->pc;
 
-    parsed.opcode_number = opcode & 0x1F;
-    parsed.opcode_kind = OpcodeKind_VAR;
+    Instruction parsed = {
+            .opcode_kind = OpcodeKind_VAR,
+            .opcode_number = opcode & 0x1F,
+    };
 
     // There used to be a condition here to check bit 5 to determine whether
     // this variable form instruction is a 2OP (see §4.3.3), but I don't think
@@ -206,11 +209,12 @@ Instruction decode_ins_variable(Machine *m, uint8_t opcode) {
 }
 
 Instruction decode_ins_short(Machine *m, uint8_t opcode) {
-    Instruction parsed = {};
     uint16_t offset = m->pc;
 
-    // Short
-    parsed.opcode_number = opcode & 0xF;
+    Instruction parsed = {
+            .opcode_number = opcode & 0xF,
+    };
+
     // Bits 4 and 5
     if ((opcode >> 4 & 0x3) == 0x3) {
         parsed.opcode_kind = OpcodeKind_0OP;
