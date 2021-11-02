@@ -104,138 +104,152 @@ uint16_t get_variable(Machine *m, uint8_t var) {
     return 0;
 }
 
-Instruction decode(Machine *m, uint16_t offset, uint8_t zversion) {
-    Instruction parsed = {
-            .n_operands = 0,
-            .operands = {},
-            .pc_incr = 2,
-    };
+Instruction decode_ins_long(Machine *m, uint8_t opcode) {
+    Instruction parsed = {};
+    uint16_t offset = m->pc;
 
-    uint8_t opcode = memory_read_byte(m, offset);
+    parsed.opcode_kind = OpcodeKind_2OP;
+    parsed.opcode_number = opcode & 0x1F;
+    parsed.n_operands = 2;
 
-    /*
-  $$00    Large constant (0 to 65535)    2 bytes
-  $$01    Small constant (0 to 255)      1 byte
-  $$10    Variable                       1 byte
-  $$11    Omitted altogether             0 bytes
-     */
-
-    uint8_t opcode_top_bits = opcode >> 6;
-
-    if ((opcode_top_bits ^ 0b11) == 0) {
-        // Variable
-        parsed.opcode_number = opcode & 0x1F;
-        if ((opcode >> 5 & 0b1) == 0b0) {
-            parsed.opcode_kind = OpcodeKind_2OP;
-            parsed.n_operands = 2;
+    uint8_t operand_types[2] = {(opcode >> 6) & 0b1, (opcode >> 5) & 0b1};
+    for (size_t i = 0; i < sizeof operand_types; i++) {
+        if (operand_types[i] == 0b0) {
+            // Byte constant
+            parsed.operands[i] = memory_read_byte(m, offset+1);
         } else {
-            parsed.opcode_kind = OpcodeKind_VAR;
-
-            uint8_t operand_types_bitfield = memory_read_byte(m, offset+1);
-            uint8_t offset_offset = 0;
-            for (size_t shift = 6; shift >= 0; shift-=2) {
-                uint8_t type = operand_types_bitfield >> shift & 0b11;
-                if (type == 0b11) break;
-
-                switch (type) {
-                    case 0b00:
-                        parsed.operands[parsed.n_operands] = memory_read_word(m, offset+2+offset_offset);
-                        parsed.pc_incr = 4;
-                        offset_offset += 2;
-                        break;
-                    case 0b01:
-                        parsed.operands[parsed.n_operands] = memory_read_byte(m, offset+2+offset_offset);
-                        parsed.pc_incr = 3;
-                        offset_offset += 1;
-                        break;
-                    case 0b10:
-                        get_variable(m, offset+2+offset_offset);
-                        parsed.pc_incr = 3;
-                        offset_offset += 1;
-                        break;
-                }
-
-                parsed.n_operands += 1;
-            }
+            // Byte variable
+            parsed.operands[i] = get_variable(m, memory_read_byte(m, offset+1));
         }
+    }
 
-    } else if ((opcode_top_bits ^ 0b10) == 0) {
-        // Short
-        parsed.opcode_number = opcode & 0xF;
-        // Bits 4 and 5
-        if ((opcode >> 4 & 0x3) == 0x3) {
-            parsed.opcode_kind = OpcodeKind_0OP;
-            parsed.n_operands = 0;
-        } else {
-            parsed.opcode_kind = OpcodeKind_1OP;
-            parsed.n_operands = 1;
+    return parsed;
+}
 
-            uint8_t operand_type = (opcode >> 4) & 0x3;
-            if (operand_type == 0b00) {
-                // Word constant
-                parsed.operands[0] = memory_read_word(m, offset+1);
+Instruction decode_ins_extended(Machine *m, uint8_t opcode) {
+    Instruction parsed = {};
+    uint16_t offset = m->pc;
+
+    parsed.opcode_kind = OpcodeKind_EXT;
+    parsed.opcode_number = memory_read_byte(m, offset+1);
+
+    uint8_t operand_types_bitfield = memory_read_byte(m, offset+2);
+    uint8_t iter_offset = 0;
+    for (size_t shift = 6; shift >= 0; shift-=2) {
+        uint8_t type = operand_types_bitfield >> shift & 0b11;
+        if (type == 0b11) break;
+
+        switch (type) {
+            case 0b00:
+                parsed.operands[parsed.n_operands] = memory_read_word(m, offset+3+iter_offset);
+                parsed.pc_incr = 4;
+                iter_offset += 2;
+                break;
+            case 0b01:
+                parsed.operands[parsed.n_operands] = memory_read_byte(m, offset+3+iter_offset);
                 parsed.pc_incr = 3;
-            } else if (operand_type == 0b01) {
-                // Byte constant
-                parsed.operands[0] = memory_read_byte(m, offset+1);
-                parsed.pc_incr = 2;
-            } else if (operand_type == 0b10) {
-                // Byte variable
-                parsed.operands[0] = get_variable(m, memory_read_byte(m, offset+1));
-                parsed.pc_incr = 2;
-            }
+                iter_offset += 1;
+                break;
+            case 0b10:
+                get_variable(m, offset+3+iter_offset);
+                parsed.pc_incr = 3;
+                iter_offset += 1;
+                break;
         }
 
-    } else if ((opcode_top_bits ^ 0xBE) == 0 && zversion >= 5) {
-        // Extended
-        parsed.opcode_kind = OpcodeKind_EXT;
-        parsed.opcode_number = memory_read_byte(m, offset+1);
+        parsed.n_operands += 1;
+    }
 
-        uint8_t operand_types_bitfield = memory_read_byte(m, offset+2);
-        uint8_t offset_offset = 0;
+    return parsed;
+}
+
+Instruction decode_ins_variable(Machine *m, uint8_t opcode) {
+    Instruction parsed = {};
+    uint16_t offset = m->pc;
+
+    parsed.opcode_number = opcode & 0x1F;
+    if ((opcode >> 5 & 0b1) == 0b0) {
+        parsed.opcode_kind = OpcodeKind_2OP;
+        parsed.n_operands = 2;
+    } else {
+        parsed.opcode_kind = OpcodeKind_VAR;
+
+        uint8_t operand_types_bitfield = memory_read_byte(m, offset+1);
+        uint8_t iter_offset = 0;
         for (size_t shift = 6; shift >= 0; shift-=2) {
             uint8_t type = operand_types_bitfield >> shift & 0b11;
             if (type == 0b11) break;
 
             switch (type) {
                 case 0b00:
-                    parsed.operands[parsed.n_operands] = memory_read_word(m, offset+3+offset_offset);
+                    parsed.operands[parsed.n_operands] = memory_read_word(m, offset+2+iter_offset);
                     parsed.pc_incr = 4;
-                    offset_offset += 2;
+                    iter_offset += 2;
                     break;
                 case 0b01:
-                    parsed.operands[parsed.n_operands] = memory_read_byte(m, offset+3+offset_offset);
+                    parsed.operands[parsed.n_operands] = memory_read_byte(m, offset+2+iter_offset);
                     parsed.pc_incr = 3;
-                    offset_offset += 1;
+                    iter_offset += 1;
                     break;
                 case 0b10:
-                    get_variable(m, offset+3+offset_offset);
+                    get_variable(m, offset+2+iter_offset);
                     parsed.pc_incr = 3;
-                    offset_offset += 1;
+                    iter_offset += 1;
                     break;
             }
 
             parsed.n_operands += 1;
         }
-    } else {
-        // Long
-        parsed.opcode_kind = OpcodeKind_2OP;
-        parsed.opcode_number = opcode & 0x1F;
-        parsed.n_operands = 2;
-
-        uint8_t operand_types[2] = {(opcode >> 6) & 0b1, (opcode >> 5) & 0b1};
-        for (size_t i = 0; i < sizeof operand_types; i++) {
-            if (operand_types[i] == 0b0) {
-                // Byte constant
-                parsed.operands[i] = memory_read_byte(m, offset+1);
-            } else {
-                // Byte variable
-                parsed.operands[i] = get_variable(m, memory_read_byte(m, offset+1));
-            }
-        }
     }
 
     return parsed;
+}
+
+Instruction decode_ins_short(Machine *m, uint8_t opcode) {
+    Instruction parsed = {};
+    uint16_t offset = m->pc;
+
+    // Short
+    parsed.opcode_number = opcode & 0xF;
+    // Bits 4 and 5
+    if ((opcode >> 4 & 0x3) == 0x3) {
+        parsed.opcode_kind = OpcodeKind_0OP;
+        parsed.n_operands = 0;
+    } else {
+        parsed.opcode_kind = OpcodeKind_1OP;
+        parsed.n_operands = 1;
+
+        uint8_t operand_type = (opcode >> 4) & 0x3;
+        if (operand_type == 0b00) {
+            // Word constant
+            parsed.operands[0] = memory_read_word(m, offset+1);
+            parsed.pc_incr = 3;
+        } else if (operand_type == 0b01) {
+            // Byte constant
+            parsed.operands[0] = memory_read_byte(m, offset+1);
+            parsed.pc_incr = 2;
+        } else if (operand_type == 0b10) {
+            // Byte variable
+            parsed.operands[0] = get_variable(m, memory_read_byte(m, offset+1));
+            parsed.pc_incr = 2;
+        }
+    }
+    return parsed;
+}
+
+Instruction decode(Machine *m, uint16_t offset, uint8_t zversion) {
+    uint8_t opcode = memory_read_byte(m, offset);
+
+    uint8_t opcode_top_bits = opcode >> 6;
+    if ((opcode_top_bits ^ 0b11) == 0) {
+        return decode_ins_variable(m, opcode);
+    } else if ((opcode_top_bits ^ 0b10) == 0) {
+        return decode_ins_short(m, opcode);
+    } else if ((opcode_top_bits ^ 0xBE) == 0 && zversion >= 5) {
+        return decode_ins_extended(m, opcode);
+    } else {
+        return decode_ins_long(m, opcode);
+    }
 }
 
 ZRet start_game_loop(Machine *m, Config config, uint8_t zversion, uint8_t zversion_specific) {
