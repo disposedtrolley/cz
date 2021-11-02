@@ -168,38 +168,38 @@ Instruction decode_ins_variable(Machine *m, uint8_t opcode) {
     uint16_t offset = m->pc;
 
     parsed.opcode_number = opcode & 0x1F;
-    if ((opcode >> 5 & 0b1) == 0b0) {
-        parsed.opcode_kind = OpcodeKind_2OP;
-        parsed.n_operands = 2;
-    } else {
-        parsed.opcode_kind = OpcodeKind_VAR;
+    parsed.opcode_kind = OpcodeKind_VAR;
 
-        uint8_t operand_types_bitfield = memory_read_byte(m, offset+1);
-        uint8_t iter_offset = 0;
-        for (size_t shift = 6; shift >= 0; shift-=2) {
-            uint8_t type = operand_types_bitfield >> shift & 0b11;
-            if (type == 0b11) break;
+    // There used to be a condition here to check bit 5 to determine whether
+    // this variable form instruction is a 2OP (see §4.3.3), but I don't think
+    // it's strictly required as we're going to need to iterate through the
+    // operand types bitfield which will tell us how many to expect.
 
-            switch (type) {
-                case 0b00:
-                    parsed.operands[parsed.n_operands] = memory_read_word(m, offset+2+iter_offset);
-                    parsed.pc_incr = 4;
-                    iter_offset += 2;
-                    break;
-                case 0b01:
-                    parsed.operands[parsed.n_operands] = memory_read_byte(m, offset+2+iter_offset);
-                    parsed.pc_incr = 3;
-                    iter_offset += 1;
-                    break;
-                case 0b10:
-                    get_variable(m, offset+2+iter_offset);
-                    parsed.pc_incr = 3;
-                    iter_offset += 1;
-                    break;
-            }
+    uint8_t operand_types_bitfield = memory_read_byte(m, offset+1);
+    uint8_t iter_offset = 0;
+    for (size_t shift = 6; shift >= 0; shift-=2) {
+        uint8_t type = operand_types_bitfield >> shift & 0b11;
+        if (type == 0b11) break;
 
-            parsed.n_operands += 1;
+        switch (type) {
+            case 0b00:
+                parsed.operands[parsed.n_operands] = memory_read_word(m, offset+2+iter_offset);
+                parsed.pc_incr = 4;
+                iter_offset += 2;
+                break;
+            case 0b01:
+                parsed.operands[parsed.n_operands] = memory_read_byte(m, offset+2+iter_offset);
+                parsed.pc_incr = 3;
+                iter_offset += 1;
+                break;
+            case 0b10:
+                get_variable(m, offset+2+iter_offset);
+                parsed.pc_incr = 3;
+                iter_offset += 1;
+                break;
         }
+
+        parsed.n_operands += 1;
     }
 
     return parsed;
