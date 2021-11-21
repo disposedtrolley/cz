@@ -9,7 +9,7 @@ uint8_t zversion, zversion_specific;
 
 int main(int argc, char *argv[]) {
     if (argc != 2) {
-        panic("Expected one argument (path to story file), but got %d\n", argc);
+        panic("Expected one argument (path to story file), but got %d\n", argc-1);
     }
 
     Machine *m = malloc(sizeof *m);
